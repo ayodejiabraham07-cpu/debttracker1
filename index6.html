@@ -1,0 +1,632 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DebtTrack — Payment Reminder System</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap');
+  :root{--bg:#f5f7f5;--surface:#ffffff;--surface2:#f0f4f0;--border:#e0e8e0;--border2:#d0dcd0;--text:#1a2e1a;--text2:#5a7a5a;--text3:#9ab09a;--accent:#2d7a3a;--accent-dim:rgba(45,122,58,0.08);--accent-light:#e8f5ea;--red:#c0392b;--red-dim:rgba(192,57,43,0.08);--amber:#d4870a;--amber-dim:rgba(212,135,10,0.08);--blue:#2471a3;--blue-dim:rgba(36,113,163,0.08);--green:#2d7a3a;--green-dim:rgba(45,122,58,0.08);--radius:10px;--radius-sm:6px;--shadow:0 1px 3px rgba(0,0,0,0.08)}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;font-size:14px}
+  .field-error{font-size:11px;color:var(--red);margin-top:3px;display:none}
+  .field-error.show{display:block}
+  .input-error{border-color:var(--red)!important}
+  .spinner{display:inline-block;width:14px;height:14px;border:2px solid rgba(255,255,255,0.4);border-top-color:#fff;border-radius:50%;animation:spin 0.7s linear infinite;margin-right:4px}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .dialog-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:300;align-items:center;justify-content:center;padding:20px}
+  .dialog-overlay.open{display:flex}
+  .dialog-box{background:var(--surface);border-radius:var(--radius);padding:28px;width:100%;max-width:340px;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,0.15)}
+  .dialog-icon{font-size:36px;margin-bottom:12px}
+  .dialog-title{font-size:15px;font-weight:600;color:var(--text);margin-bottom:6px}
+  .dialog-msg{font-size:13px;color:var(--text2);margin-bottom:20px}
+  .dialog-ok{padding:8px 24px;background:var(--accent);color:#fff;border:none;border-radius:var(--radius-sm);font-family:inherit;font-size:13px;font-weight:500;cursor:pointer}
+  #login-screen{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;background:linear-gradient(135deg,#e8f5ea 0%,#f5f7f5 100%)}
+  .login-box{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:40px;width:100%;max-width:380px;box-shadow:0 4px 24px rgba(45,122,58,0.1)}
+  .login-logo{font-size:22px;font-weight:600;color:var(--accent);margin-bottom:4px}
+  .login-tagline{font-size:13px;color:var(--text2);margin-bottom:28px}
+  .form-label{font-size:12px;color:var(--text2);margin-bottom:5px;display:block;font-weight:500}
+  .form-input{width:100%;padding:10px 14px;background:var(--surface2);border:1px solid var(--border2);border-radius:var(--radius-sm);color:var(--text);font-family:inherit;font-size:14px;margin-bottom:14px;outline:none;transition:border-color 0.2s}
+  .form-input:focus{border-color:var(--accent)}
+  .btn-login{width:100%;padding:11px;background:var(--accent);color:#fff;border:none;border-radius:var(--radius-sm);font-family:'Inter',sans-serif;font-size:14px;font-weight:600;cursor:pointer;transition:background 0.2s;display:flex;align-items:center;justify-content:center;gap:6px}
+  .btn-login:hover{background:#236130}
+  #app{display:none;flex-direction:column;min-height:100vh}
+  .topbar{background:var(--accent);padding:0 20px;height:54px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;box-shadow:0 2px 8px rgba(45,122,58,0.2)}
+  .topbar-logo{font-size:17px;font-weight:600;color:#fff;letter-spacing:-0.3px}
+  .topbar-right{display:flex;align-items:center;gap:14px}
+  .topbar-right span{font-size:13px;color:rgba(255,255,255,0.8)}
+  .logout-btn{background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.3);color:#fff;padding:5px 12px;border-radius:var(--radius-sm);font-size:12px;cursor:pointer;font-family:inherit;transition:all 0.2s}
+  .logout-btn:hover{background:rgba(255,255,255,0.25)}
+  .nav{background:var(--surface);border-bottom:1px solid var(--border);padding:0 20px;display:flex;gap:2px;overflow-x:auto;box-shadow:var(--shadow)}
+  .nav::-webkit-scrollbar{display:none}
+  .nav-btn{padding:13px 14px;background:none;border:none;color:var(--text2);font-family:inherit;font-size:13px;cursor:pointer;border-bottom:2px solid transparent;white-space:nowrap;transition:all 0.2s;font-weight:500}
+  .nav-btn:hover{color:var(--accent)}
+  .nav-btn.active{color:var(--accent);border-bottom-color:var(--accent)}
+  .main{padding:20px;flex:1;max-width:1100px;margin:0 auto;width:100%}
+  .section{display:none}
+  .section.active{display:block}
+  .stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:20px}
+  .stat-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px 18px;box-shadow:var(--shadow)}
+  .stat-label{font-size:11px;color:var(--text2);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;font-weight:500}
+  .stat-value{font-size:22px;font-weight:600;color:var(--text);font-family:'DM Mono',monospace}
+  .stat-sub{font-size:11px;color:var(--text3);margin-top:4px}
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:16px;overflow:hidden;box-shadow:var(--shadow)}
+  .card-header{padding:14px 18px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);background:var(--surface);flex-wrap:wrap;gap:8px}
+  .card-title{font-size:13px;font-weight:600;color:var(--text)}
+  .card-body{padding:18px}
+  .tbl-wrap{overflow-x:auto}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th{text-align:left;padding:10px 16px;color:var(--text2);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;border-bottom:1px solid var(--border);white-space:nowrap;background:var(--surface2)}
+  td{padding:12px 16px;border-bottom:1px solid var(--border);color:var(--text)}
+  tr:last-child td{border-bottom:none}
+  tr:hover td{background:var(--accent-light)}
+  .badge{display:inline-flex;align-items:center;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;white-space:nowrap}
+  .badge-pending{background:var(--amber-dim);color:var(--amber);border:1px solid rgba(212,135,10,0.2)}
+  .badge-overdue{background:var(--red-dim);color:var(--red);border:1px solid rgba(192,57,43,0.2)}
+  .badge-paid{background:var(--green-dim);color:var(--green);border:1px solid rgba(45,122,58,0.2)}
+  .badge-partial{background:var(--blue-dim);color:var(--blue);border:1px solid rgba(36,113,163,0.2)}
+  .btn{padding:7px 14px;border-radius:var(--radius-sm);font-family:inherit;font-size:12px;cursor:pointer;display:inline-flex;align-items:center;gap:5px;transition:all 0.2s;font-weight:500}
+  .btn-primary{background:var(--accent);color:#fff;border:none}
+  .btn-primary:hover{background:#236130}
+  .btn-ghost{background:none;color:var(--text2);border:1px solid var(--border2)}
+  .btn-ghost:hover{border-color:var(--accent);color:var(--accent)}
+  .btn-export{background:var(--accent-light);color:var(--accent);border:1px solid var(--border)}
+  .btn-export:hover{background:var(--accent);color:#fff}
+  .btn-wa{background:#25D366;color:#fff;border:none;padding:4px 10px;font-size:11px;border-radius:4px;cursor:pointer;font-family:inherit;font-weight:500}
+  .btn-wa:hover{background:#1da851}
+  .icon-btn{background:none;border:1px solid var(--border2);color:var(--text2);cursor:pointer;padding:3px 8px;border-radius:4px;font-size:11px;transition:all 0.2s;font-family:inherit;margin-right:4px}
+  .icon-btn:hover{border-color:var(--accent);color:var(--accent)}
+  .icon-btn.delete:hover{border-color:var(--red);color:var(--red)}
+  .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px}
+  .form-group{display:flex;flex-direction:column;gap:5px}
+  .form-group label{font-size:12px;color:var(--text2);font-weight:500}
+  .form-group input,.form-group select,.form-group textarea{padding:9px 12px;background:var(--surface2);border:1px solid var(--border2);border-radius:var(--radius-sm);color:var(--text);font-family:inherit;font-size:13px;outline:none;transition:border-color 0.2s}
+  .form-group input:focus,.form-group select:focus{border-color:var(--accent)}
+  .form-actions{display:flex;gap:10px;margin-top:4px}
+  .alert{padding:10px 14px;border-radius:var(--radius-sm);font-size:13px;margin-bottom:16px;display:none;font-weight:500}
+  .alert-success{background:var(--green-dim);color:var(--green);border:1px solid rgba(45,122,58,0.2)}
+  .alert-error{background:var(--red-dim);color:var(--red);border:1px solid rgba(192,57,43,0.2)}
+  .search-bar{padding:7px 12px;background:var(--surface2);border:1px solid var(--border2);border-radius:var(--radius-sm);color:var(--text);font-family:inherit;font-size:13px;outline:none;width:180px;transition:border-color 0.2s}
+  .search-bar:focus{border-color:var(--accent)}
+  .config-note{background:var(--accent-light);border:1px solid rgba(45,122,58,0.2);border-radius:var(--radius-sm);padding:12px 16px;font-size:13px;color:var(--accent);margin-bottom:16px;font-weight:500}
+  .webhook-url{font-family:'DM Mono',monospace;font-size:11px;background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:2px 6px;color:var(--text)}
+  .modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:200;align-items:center;justify-content:center;padding:20px}
+  .modal-overlay.open{display:flex}
+  .modal{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);width:100%;max-width:460px;max-height:90vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,0.15)}
+  .modal-header{padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;background:var(--surface2)}
+  .modal-title{font-size:14px;font-weight:600}
+  .modal-close{background:none;border:none;color:var(--text2);cursor:pointer;font-size:18px}
+  .modal-body{padding:20px}
+  .modal-footer{padding:14px 20px;border-top:1px solid var(--border);display:flex;gap:10px;justify-content:flex-end}
+  .hrow{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  @media(max-width:600px){.form-grid{grid-template-columns:1fr}.stats-grid{grid-template-columns:1fr 1fr}.search-bar{width:120px}}
+</style>
+</head>
+<body>
+
+<div id="login-screen">
+  <div class="login-box">
+    <div class="login-logo">DebtTrack</div>
+    <p class="login-tagline">Payment reminder management system</p>
+    <label class="form-label">Username</label>
+    <input type="text" class="form-input" id="login-user" placeholder="admin" />
+    <label class="form-label">Password</label>
+    <input type="password" class="form-input" id="login-pass" placeholder="Enter password" />
+    <div class="alert alert-error" id="login-error">Invalid username or password</div>
+    <button class="btn-login" onclick="doLogin()">Sign in</button>
+
+  </div>
+</div>
+
+<div id="app">
+  <div class="topbar">
+    <span class="topbar-logo">DebtTrack</span>
+    <div class="topbar-right">
+      <span id="biz-name-display">My Business</span>
+      <button class="logout-btn" onclick="doLogout()">Sign out</button>
+    </div>
+  </div>
+
+  <nav class="nav">
+    <button class="nav-btn active" onclick="showSection('dashboard',this)">Dashboard</button>
+    <button class="nav-btn" onclick="showSection('customers',this)">Customers</button>
+    <button class="nav-btn" onclick="showSection('debts',this)">Debts</button>
+    <button class="nav-btn" onclick="showSection('add-record',this)">Add Record</button>
+    <button class="nav-btn" onclick="showSection('reports',this)">Reports</button>
+    <button class="nav-btn" onclick="showSection('settings',this)">Settings</button>
+  </nav>
+
+  <div class="main">
+
+    <div id="dashboard" class="section active">
+      <div class="stats-grid">
+        <div class="stat-card"><div class="stat-label">Total Outstanding</div><div class="stat-value" id="stat-total">N0</div><div class="stat-sub" id="stat-total-count">0 records</div></div>
+        <div class="stat-card"><div class="stat-label">Overdue</div><div class="stat-value" style="color:var(--red)" id="stat-overdue">N0</div><div class="stat-sub" id="stat-overdue-count">0 customers</div></div>
+        <div class="stat-card"><div class="stat-label">Pending</div><div class="stat-value" style="color:var(--amber)" id="stat-pending">N0</div><div class="stat-sub" id="stat-pending-count">0 records</div></div>
+        <div class="stat-card"><div class="stat-label">Total Paid</div><div class="stat-value" style="color:var(--green)" id="stat-paid">N0</div><div class="stat-sub" id="stat-paid-count">0 payments</div></div>
+      </div>
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">Recent Records</span>
+          <div class="hrow">
+            <button class="btn btn-export" onclick="exportTable('dash-table','recent-records')">Export CSV</button>
+            <button class="btn btn-ghost" onclick="loadData()">Refresh</button>
+          </div>
+        </div>
+        <div class="tbl-wrap">
+          <table><thead><tr><th>Customer</th><th>Amount</th><th>Due Date</th><th>Status</th><th>Notes</th></tr></thead>
+          <tbody id="dash-table"><tr><td colspan="5" style="text-align:center;padding:32px;color:var(--text3)">Loading...</td></tr></tbody></table>
+        </div>
+      </div>
+    </div>
+
+    <div id="customers" class="section">
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">All Customers</span>
+          <div class="hrow">
+            <input type="text" class="search-bar" placeholder="Search..." oninput="filterCustomers(this.value)" />
+            <button class="btn btn-export" onclick="exportTable('customers-table','customers')">Export CSV</button>
+            <button class="btn btn-primary" onclick="openModal('add-customer-modal')">Add Customer</button>
+          </div>
+        </div>
+        <div class="tbl-wrap">
+          <table><thead><tr><th>Name</th><th>Phone</th><th>Total Owed</th><th>Status</th><th>Actions</th></tr></thead>
+          <tbody id="customers-table"><tr><td colspan="6" style="text-align:center;padding:32px;color:var(--text3)">Loading...</td></tr></tbody></table>
+        </div>
+      </div>
+    </div>
+
+    <div id="debts" class="section">
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">All Debt Records</span>
+          <div class="hrow">
+            <select style="padding:7px 10px;background:var(--surface2);border:1px solid var(--border2);border-radius:6px;color:var(--text);font-size:12px;font-family:inherit" onchange="filterDebts(this.value)">
+              <option value="">All Statuses</option><option>Pending</option><option>Overdue</option><option>Partial</option><option>Paid</option>
+            </select>
+            <button class="btn btn-export" onclick="exportTable('debts-table','debt-records')">Export CSV</button>
+            <button class="btn btn-primary" onclick="showSection('add-record',document.querySelectorAll('.nav-btn')[3])">Add Debt</button>
+          </div>
+        </div>
+        <div class="tbl-wrap">
+          <table><thead><tr><th>Customer</th><th>Phone</th><th>Amount</th><th>Due Date</th><th>Status</th><th>Notes</th><th>Actions</th></tr></thead>
+          <tbody id="debts-table"><tr><td colspan="8" style="text-align:center;padding:32px;color:var(--text3)">Loading...</td></tr></tbody></table>
+        </div>
+      </div>
+    </div>
+
+    <div id="add-record" class="section">
+      <div class="card">
+        <div class="card-header"><span class="card-title">Add New Debt Record</span></div>
+        <div class="card-body">
+          <div class="alert alert-success" id="add-success">Record saved successfully.</div>
+          <div class="alert alert-error" id="add-error">Please fill all required fields.</div>
+          <div class="form-grid">
+            <div class="form-group"><label>Customer Name *</label><input type="text" id="new-name" placeholder="Full name" /><span class="field-error"></span></div>
+            <div class="form-group"><label>Phone Number *</label><input type="text" id="new-phone" placeholder="+2348012345678" /><span class="field-error"></span></div>
+          </div>
+          <div class="form-grid">
+            <div class="form-group"><label>Amount Owed (N) *</label><input type="number" id="new-amount" placeholder="50000" /><span class="field-error"></span></div>
+            <div class="form-group"><label>Due Date *</label><input type="date" id="new-due" /><span class="field-error"></span></div>
+          </div>
+          <div class="form-grid">
+            <div class="form-group"><label>Status</label><select id="new-status"><option>Pending</option><option>Partial</option><option>Paid</option><option>Overdue</option></select></div>
+            <div class="form-group"><label>Notes</label><input type="text" id="new-notes" placeholder="Brief description..." /></div>
+          </div>
+          <div class="form-actions">
+            <button class="btn btn-primary" onclick="saveDebt()">Save Record</button>
+            <button class="btn btn-ghost" onclick="clearForm()">Clear</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="reports" class="section">
+      <div class="stats-grid">
+        <div class="stat-card"><div class="stat-label">Total Outstanding</div><div class="stat-value" id="rep-outstanding">N0</div></div>
+        <div class="stat-card"><div class="stat-label">Overdue Amount</div><div class="stat-value" style="color:var(--red)" id="rep-overdue">N0</div></div>
+        <div class="stat-card"><div class="stat-label">Paid This Month</div><div class="stat-value" style="color:var(--green)" id="rep-paid">N0</div></div>
+        <div class="stat-card"><div class="stat-label">Total Records</div><div class="stat-value" id="rep-count">0</div></div>
+      </div>
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">Upcoming Payments (Next 7 Days)</span>
+          <button class="btn btn-export" onclick="exportTable('upcoming-table','upcoming-payments')">Export CSV</button>
+        </div>
+        <div class="tbl-wrap">
+          <table><thead><tr><th>Customer</th><th>Amount</th><th>Due Date</th><th>Days Left</th><th>Phone</th></tr></thead>
+          <tbody id="upcoming-table"><tr><td colspan="6" style="text-align:center;padding:32px;color:var(--text3)">No upcoming payments</td></tr></tbody></table>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">Overdue Records</span>
+          <button class="btn btn-export" onclick="exportTable('overdue-table','overdue-records')">Export CSV</button>
+        </div>
+        <div class="tbl-wrap">
+          <table><thead><tr><th>Customer</th><th>Amount</th><th>Due Date</th><th>Days Overdue</th><th>Phone</th></tr></thead>
+          <tbody id="overdue-table"><tr><td colspan="6" style="text-align:center;padding:32px;color:var(--text3)">No overdue records</td></tr></tbody></table>
+        </div>
+      </div>
+    </div>
+
+    <div id="settings" class="section">
+      <div class="config-note">Configure your n8n webhook URL and business details below.</div>
+      <div class="card">
+        <div class="card-header"><span class="card-title">Business Settings</span></div>
+        <div class="card-body">
+          <div class="form-group" style="margin-bottom:14px"><label>n8n Webhook Base URL</label><input type="text" id="webhook-url" placeholder="https://your-n8n.hstgr.cloud/webhook" /></div>
+          <div class="form-group" style="margin-bottom:14px"><label>Business Name</label><input type="text" id="biz-name-input" placeholder="My Business" /></div>
+          <div class="form-group" style="margin-bottom:14px"><label>Owner WhatsApp Number</label><input type="text" id="owner-phone-input" value="+2349065469153" /></div>
+          <div class="form-group" style="margin-bottom:14px"><label>Change Password</label><input type="password" id="new-password" placeholder="Enter new password..." /></div>
+          <button class="btn btn-primary" onclick="saveSettings()">Save Settings</button>
+          <div class="alert alert-success" id="settings-saved" style="margin-top:12px">Settings saved.</div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header"><span class="card-title">n8n Webhook Endpoints</span></div>
+        <div class="card-body">
+          <p style="font-size:12px;color:var(--text2);margin-bottom:14px">Set up these webhook paths in your n8n workflows:</p>
+          <table style="font-size:12px">
+            <tr><td style="padding:8px 0;color:var(--text2);width:160px">Get all debts</td><td><code class="webhook-url">/webhook/debts-get</code></td></tr>
+            <tr><td style="padding:8px 0;color:var(--text2)">Add debt</td><td><code class="webhook-url">/webhook/debts-add</code></td></tr>
+            <tr><td style="padding:8px 0;color:var(--text2)">Update debt</td><td><code class="webhook-url">/webhook/debts-update</code></td></tr>
+            <tr><td style="padding:8px 0;color:var(--text2)">Delete debt</td><td><code class="webhook-url">/webhook/debts-delete</code></td></tr>
+            <tr><td style="padding:8px 0;color:var(--text2)">Daily reminders</td><td><code class="webhook-url">Schedule trigger — 10:00 AM daily</code></td></tr>
+          </table>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<div class="modal-overlay" id="add-customer-modal">
+  <div class="modal">
+    <div class="modal-header"><span class="modal-title">Add Customer</span><button class="modal-close" onclick="closeModal('add-customer-modal')">x</button></div>
+    <div class="modal-body">
+      <div class="form-group" style="margin-bottom:12px"><label>Full Name *</label><input type="text" id="cust-name" placeholder="Customer full name" /></div>
+      <div class="form-group" style="margin-bottom:12px"><label>Phone Number *</label><input type="text" id="cust-phone" placeholder="+2348012345678" /></div>
+      <div class="form-group"><label>Email (optional)</label><input type="email" id="cust-email" placeholder="customer@email.com" /></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('add-customer-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="addCustomer()">Save Customer</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="edit-debt-modal">
+  <div class="modal">
+    <div class="modal-header"><span class="modal-title">Update Debt Record</span><button class="modal-close" onclick="closeModal('edit-debt-modal')">x</button></div>
+    <div class="modal-body">
+      <input type="hidden" id="edit-row-id" />
+      <div class="form-group" style="margin-bottom:12px"><label>Customer</label><input type="text" id="edit-name" readonly style="opacity:0.6" /></div>
+      <div class="form-group" style="margin-bottom:12px"><label>Amount (N)</label><input type="number" id="edit-amount" /></div>
+      <div class="form-group" style="margin-bottom:12px"><label>Due Date</label><input type="date" id="edit-due" /></div>
+      <div class="form-group"><label>Status</label><select id="edit-status"><option>Pending</option><option>Partial</option><option>Paid</option><option>Overdue</option></select></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('edit-debt-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="updateDebt()">Update Record</button>
+    </div>
+  </div>
+</div>
+
+<script>
+let PASS='admin123';
+let allDebts=[];
+let settings={webhookUrl:'',bizName:'My Business',ownerPhone:'+2349065469153'};
+
+function loadSettings(){
+  const s=localStorage.getItem('debttrack_settings');
+  if(s) settings={...settings,...JSON.parse(s)};
+  document.getElementById('webhook-url').value=settings.webhookUrl||'';
+  document.getElementById('biz-name-input').value=settings.bizName||'';
+  document.getElementById('owner-phone-input').value=settings.ownerPhone||'+2349065469153';
+  document.getElementById('biz-name-display').textContent=settings.bizName||'My Business';
+}
+
+function saveSettings(){
+  settings.webhookUrl=document.getElementById('webhook-url').value.trim();
+  settings.bizName=document.getElementById('biz-name-input').value.trim()||'My Business';
+  settings.ownerPhone=document.getElementById('owner-phone-input').value.trim()||'+2349065469153';
+  const np=document.getElementById('new-password').value;
+  if(np) PASS=np;
+  localStorage.setItem('debttrack_settings',JSON.stringify(settings));
+  document.getElementById('biz-name-display').textContent=settings.bizName;
+  showAlert('settings-saved');
+}
+
+function doLogin(){
+  const u=document.getElementById('login-user').value;
+  const p=document.getElementById('login-pass').value;
+  if(u==='admin'&&p===PASS){
+    document.getElementById('login-screen').style.display='none';
+    document.getElementById('app').style.display='flex';
+    loadSettings();loadData();
+  } else showAlert('login-error');
+}
+
+function doLogout(){
+  document.getElementById('app').style.display='none';
+  document.getElementById('login-screen').style.display='flex';
+  document.getElementById('login-user').value='';
+  document.getElementById('login-pass').value='';
+}
+
+function showSection(id,btn){
+  document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  if(btn) btn.classList.add('active');
+  if(id==='reports') renderReports();
+}
+
+function fmt(n){return 'N'+Number(n).toLocaleString('en-NG')}
+
+function badgeHtml(s){
+  const m={Pending:'badge-pending',Overdue:'badge-overdue',Paid:'badge-paid',Partial:'badge-partial'};
+  return `<span class="badge ${m[s]||'badge-pending'}">${s}</span>`;
+}
+
+function waBtn(phone,name,amount,due){
+  const clean=phone.replace(/[^0-9]/g,'').replace(/^0/,'234');
+  const msg=encodeURIComponent(`Hello ${name}, this is a payment reminder. You have an outstanding balance of N${Number(amount).toLocaleString('en-NG')} due on ${due}. Please make payment at your earliest convenience. Thank you.`);
+  return `<a href="https://wa.me/${clean}?text=${msg}" target="_blank"><button class="btn-wa">Send Reminder</button></a>`;
+}
+
+async function loadData(){
+  if(!settings.webhookUrl){renderSampleData();return;}
+  try{
+    const res=await fetch(settings.webhookUrl+'/debts-get');
+    const data=await res.json();
+    allDebts=Array.isArray(data)?data:(data.debts||[]);
+    renderAll();
+  }catch(e){renderSampleData();}
+}
+
+function renderSampleData(){
+  const t=new Date();
+  const d=days=>{const x=new Date(t);x.setDate(x.getDate()+days);return x.toISOString().split('T')[0]};
+  allDebts=[
+    {row:2,name:'Emeka Okafor',phone:'+2348012345678',amount:50000,due:d(-3),status:'Overdue',notes:'Shop supplies'},
+    {row:3,name:'Fatima Bello',phone:'+2348023456789',amount:80000,due:d(4),status:'Pending',notes:'Equipment loan'},
+    {row:4,name:'Chidi Nwosu',phone:'+2348034567890',amount:35000,due:d(-1),status:'Paid',notes:'Inventory'},
+    {row:5,name:'Aisha Musa',phone:'+2348045678901',amount:120000,due:d(7),status:'Partial',notes:'Construction'},
+    {row:6,name:'Tunde Adeyemi',phone:'+2348056789012',amount:200000,due:d(9),status:'Pending',notes:'Wholesale goods'},
+  ];
+  renderAll();
+}
+
+function renderAll(){renderDashboard();renderCustomers();renderDebts();}
+
+function renderDashboard(){
+  const active=allDebts.filter(d=>d.status!=='Paid');
+  const overdue=allDebts.filter(d=>d.status==='Overdue');
+  const pending=allDebts.filter(d=>d.status==='Pending');
+  const paid=allDebts.filter(d=>d.status==='Paid');
+  const sum=arr=>arr.reduce((s,d)=>s+Number(d.amount),0);
+  document.getElementById('stat-total').textContent=fmt(sum(active));
+  document.getElementById('stat-total-count').textContent=active.length+' records';
+  document.getElementById('stat-overdue').textContent=fmt(sum(overdue));
+  document.getElementById('stat-overdue-count').textContent=overdue.length+' customers';
+  document.getElementById('stat-pending').textContent=fmt(sum(pending));
+  document.getElementById('stat-pending-count').textContent=pending.length+' records';
+  document.getElementById('stat-paid').textContent=fmt(sum(paid));
+  document.getElementById('stat-paid-count').textContent=paid.length+' payments';
+  const recent=allDebts.slice(-5).reverse();
+  document.getElementById('dash-table').innerHTML=recent.length?recent.map(d=>`
+    <tr><td>${d.name}</td><td style="font-family:'DM Mono',monospace">${fmt(d.amount)}</td><td>${d.due}</td><td>${badgeHtml(d.status)}</td><td style="color:var(--text2)">${d.notes||'-'}</td></tr>`).join(''):`<tr><td colspan="5" style="text-align:center;padding:32px;color:var(--text3)">No records yet. Add your first debt record.</td></tr>`;
+}
+
+function renderCustomers(){
+  const by={};
+  allDebts.forEach(d=>{
+    if(!by[d.name]) by[d.name]={phone:d.phone,debts:[],status:'Paid'};
+    by[d.name].debts.push(d);
+    if(d.status==='Overdue') by[d.name].status='Overdue';
+    else if(d.status==='Pending'&&by[d.name].status!=='Overdue') by[d.name].status='Pending';
+    else if(d.status==='Partial'&&by[d.name].status==='Paid') by[d.name].status='Partial';
+  });
+  const rows=Object.entries(by);
+  document.getElementById('customers-table').innerHTML=rows.length?rows.map(([name,c])=>{
+    const total=c.debts.reduce((s,d)=>s+Number(d.amount),0);
+    return `<tr><td>${name}</td><td style="font-size:12px">${c.phone}</td><td style="font-family:'DM Mono',monospace">${fmt(total)}</td><td>${badgeHtml(c.status)}</td><td><button class="icon-btn delete" onclick="deleteCustomer('${name}')">Delete</button></td></tr>`;
+  }).join(''):`<tr><td colspan="6" style="text-align:center;padding:32px;color:var(--text3)">No customers yet.</td></tr>`;
+}
+
+function renderDebts(filter=''){
+  const data=filter?allDebts.filter(d=>d.status===filter):allDebts;
+  document.getElementById('debts-table').innerHTML=data.length?data.map(d=>`
+    <tr><td>${d.name}</td><td style="font-size:12px">${d.phone}</td><td style="font-family:'DM Mono',monospace">${fmt(d.amount)}</td><td>${d.due}</td><td>${badgeHtml(d.status)}</td><td style="color:var(--text2)">${d.notes||'-'}</td><td>
+      <button class="icon-btn" onclick="openEditDebt(${d.row||0},'${d.name}',${d.amount},'${d.due}','${d.status}')">Edit</button>
+      <button class="icon-btn delete" onclick="deleteDebt(${d.row||0})">Delete</button>
+    </td></tr>`).join(''):`<tr><td colspan="7" style="text-align:center;padding:32px;color:var(--text3)">No records found.</td></tr>`;
+}
+
+function filterDebts(val){renderDebts(val);}
+
+function filterCustomers(val){
+  const tmp=[...allDebts];
+  if(val) allDebts=allDebts.filter(d=>d.name.toLowerCase().includes(val.toLowerCase()));
+  renderCustomers();allDebts=tmp;
+}
+
+function renderReports(){
+  const today=new Date();today.setHours(0,0,0,0);
+  const in7=new Date(today);in7.setDate(in7.getDate()+7);
+  const thisMonth=today.getMonth();
+  const outstanding=allDebts.filter(d=>d.status!=='Paid').reduce((s,d)=>s+Number(d.amount),0);
+  const overdue=allDebts.filter(d=>d.status==='Overdue').reduce((s,d)=>s+Number(d.amount),0);
+  const paid=allDebts.filter(d=>d.status==='Paid'&&new Date(d.due).getMonth()===thisMonth).reduce((s,d)=>s+Number(d.amount),0);
+  document.getElementById('rep-outstanding').textContent=fmt(outstanding);
+  document.getElementById('rep-overdue').textContent=fmt(overdue);
+  document.getElementById('rep-paid').textContent=fmt(paid);
+  document.getElementById('rep-count').textContent=allDebts.length;
+  const upcoming=allDebts.filter(d=>{const due=new Date(d.due);due.setHours(0,0,0,0);return d.status!=='Paid'&&due>=today&&due<=in7;}).sort((a,b)=>new Date(a.due)-new Date(b.due));
+  document.getElementById('upcoming-table').innerHTML=upcoming.length?upcoming.map(d=>{
+    const days=Math.round((new Date(d.due)-today)/86400000);
+    return `<tr><td>${d.name}</td><td style="font-family:'DM Mono',monospace">${fmt(d.amount)}</td><td>${d.due}</td><td style="color:var(--amber)">${days} day${days!==1?'s':''}</td><td style="font-size:12px">${d.phone}</td></tr>`;
+  }).join(''):`<tr><td colspan="6" style="text-align:center;padding:32px;color:var(--text3)">No upcoming payments in next 7 days</td></tr>`;
+  const overdueList=allDebts.filter(d=>d.status==='Overdue').sort((a,b)=>new Date(a.due)-new Date(b.due));
+  document.getElementById('overdue-table').innerHTML=overdueList.length?overdueList.map(d=>{
+    const days=Math.abs(Math.round((new Date(d.due)-today)/86400000));
+    return `<tr><td>${d.name}</td><td style="font-family:'DM Mono',monospace">${fmt(d.amount)}</td><td>${d.due}</td><td style="color:var(--red)">${days} day${days!==1?'s':''}</td><td style="font-size:12px">${d.phone}</td></tr>`;
+  }).join(''):`<tr><td colspan="6" style="text-align:center;padding:32px;color:var(--text3)">No overdue records</td></tr>`;
+}
+
+async function saveDebt(){
+  const nameEl=document.getElementById('new-name');
+  const phoneEl=document.getElementById('new-phone');
+  const amountEl=document.getElementById('new-amount');
+  const dueEl=document.getElementById('new-due');
+
+  let valid=true;
+  [nameEl,phoneEl,amountEl,dueEl].forEach(el=>{
+    el.classList.remove('input-error');
+    const err=el.parentElement.querySelector('.field-error');
+    if(err) err.classList.remove('show');
+  });
+
+  function setErr(el,msg){
+    el.classList.add('input-error');
+    let err=el.parentElement.querySelector('.field-error');
+    if(!err){err=document.createElement('span');err.className='field-error';el.parentElement.appendChild(err);}
+    err.textContent=msg;err.classList.add('show');
+    valid=false;
+  }
+
+  if(!nameEl.value.trim()) setErr(nameEl,'Customer name is required');
+  if(!phoneEl.value.trim()) setErr(phoneEl,'Phone number is required');
+  else if(!/^[+0-9]{7,15}$/.test(phoneEl.value.trim())) setErr(phoneEl,'Enter a valid phone number');
+  if(!amountEl.value||Number(amountEl.value)<=0) setErr(amountEl,'Enter a valid amount');
+  if(!dueEl.value) setErr(dueEl,'Due date is required');
+
+  if(!valid) return;
+
+  const btn=document.querySelector('#add-record .btn-primary');
+  btn.innerHTML='<span class="spinner"></span> Saving...';
+  btn.disabled=true;
+
+  const newDebt={name:nameEl.value.trim(),phone:phoneEl.value.trim(),amount:Number(amountEl.value),due:dueEl.value,status:document.getElementById('new-status').value,notes:document.getElementById('new-notes').value.trim(),row:Date.now()};
+  if(settings.webhookUrl){
+    try{await fetch(settings.webhookUrl+'/debts-add',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(newDebt)});}catch(e){}
+  }
+  allDebts.push(newDebt);renderAll();clearForm();
+  btn.innerHTML='Save Record';btn.disabled=false;
+  showDialog('Record Added','User added successfully.');
+  setTimeout(()=>{closeDialog();showSection('debts',document.querySelectorAll('.nav-btn')[2]);},1500);
+}
+
+function clearForm(){
+  ['new-name','new-phone','new-amount','new-due','new-notes'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('new-status').value='Pending';
+}
+
+function openEditDebt(row,name,amount,due,status){
+  document.getElementById('edit-row-id').value=row;
+  document.getElementById('edit-name').value=name;
+  document.getElementById('edit-amount').value=amount;
+  document.getElementById('edit-due').value=due;
+  document.getElementById('edit-status').value=status;
+  openModal('edit-debt-modal');
+}
+
+async function updateDebt(){
+  const row=document.getElementById('edit-row-id').value;
+  const amount=Number(document.getElementById('edit-amount').value);
+  const due=document.getElementById('edit-due').value;
+  const status=document.getElementById('edit-status').value;
+  const idx=allDebts.findIndex(d=>String(d.row)===String(row));
+  if(idx!==-1) allDebts[idx]={...allDebts[idx],amount,due,status};
+  if(settings.webhookUrl){
+    try{await fetch(settings.webhookUrl+'/debts-update',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({row,amount,due,status})});}catch(e){}
+  }
+  renderAll();closeModal('edit-debt-modal');
+  showDialog('Record Updated','User record updated successfully.');
+  setTimeout(()=>closeDialog(),1500);
+}
+
+async function deleteDebt(row){
+  if(!confirm('Delete this debt record?')) return;
+  allDebts=allDebts.filter(d=>String(d.row)!==String(row));
+  if(settings.webhookUrl){
+    try{await fetch(settings.webhookUrl+'/debts-delete',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({row})});}catch(e){}
+  }
+  renderAll();
+}
+
+function deleteCustomer(name){
+  if(!confirm('Delete all records for '+name+'?')) return;
+  allDebts=allDebts.filter(d=>d.name!==name);renderAll();
+}
+
+function addCustomer(){
+  const name=document.getElementById('cust-name').value.trim();
+  const phone=document.getElementById('cust-phone').value.trim();
+  if(!name||!phone) return;
+  closeModal('add-customer-modal');
+  document.getElementById('new-name').value=name;
+  document.getElementById('new-phone').value=phone;
+  showSection('add-record',document.querySelectorAll('.nav-btn')[3]);
+}
+
+function openModal(id){document.getElementById(id).classList.add('open');}
+function closeModal(id){document.getElementById(id).classList.remove('open');}
+
+function showAlert(id){
+  const el=document.getElementById(id);
+  el.style.display='block';
+  setTimeout(()=>el.style.display='none',3000);
+}
+
+function exportTable(tableId,filename){
+  const table=document.getElementById(tableId);
+  if(!table) return;
+  const rows=table.querySelectorAll('tr');
+  const csv=[];
+  const skip=['Send Reminder','Edit','Delete','WhatsApp'];
+  rows.forEach(row=>{
+    const cols=row.querySelectorAll('th,td');
+    const data=[];
+    cols.forEach(col=>{
+      const text=col.innerText.replace(/,/g,';').replace(/\n/g,' ').trim();
+      if(!skip.includes(text)) data.push('"'+text+'"');
+    });
+    if(data.length>0) csv.push(data.join(','));
+  });
+  const blob=new Blob([csv.join('\n')],{type:'text/csv'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;a.download=filename+'-'+new Date().toISOString().split('T')[0]+'.csv';
+  a.click();URL.revokeObjectURL(url);
+}
+
+document.getElementById('login-pass').addEventListener('keydown',e=>{if(e.key==='Enter') doLogin();});
+loadSettings();
+
+function showDialog(title, msg){
+  document.getElementById('dialog-title').textContent=title;
+  document.getElementById('dialog-msg').textContent=msg;
+  document.getElementById('success-dialog').classList.add('open');
+}
+function closeDialog(){
+  document.getElementById('success-dialog').classList.remove('open');
+}
+
+</script>
+
+<!-- SUCCESS DIALOG -->
+<div class="dialog-overlay" id="success-dialog">
+  <div class="dialog-box">
+    <div class="dialog-icon">✓</div>
+    <div class="dialog-title" id="dialog-title">Success</div>
+    <div class="dialog-msg" id="dialog-msg"></div>
+    <button class="dialog-ok" onclick="closeDialog()">OK</button>
+  </div>
+</div>
+
+</body>
+</html>
